@@ -1,0 +1,75 @@
+"aLPHa" by DpEpsilon
+
+Video URL: "http://www.youtube.com/watch?v=AQ-oFrQP_Cg"
+
+ Instructions:
+ To start the game:
+ 1. Wait for the load
+ 2. Press a button when prompted
+ 3. Press the left button
+ The game will start
+ 
+ How to play:
+ Tilt the board left and right to move the ship on the botton row
+ The ship will stop at either edge.
+ 
+ Press the left button to shoot the lazer
+ If you shoot an enemy, you gain a point
+ You have to wait 500ms to charge the lazer between shots.
+ The D13 LED will be on when the lazer is charged.
+ A sound will play when the lazer is shot and
+ another sound will be played immediately after
+ to signal a charged lazer.
+ There is a sound for missing an enemy saucer and
+ a sound for hitting one.
+ 
+ If an enemy shoots at the Earth below, you will lose a life.
+ The LED Shift Register is a count of how many lives there are left.
+ You have 8 lives to start with, this is your maximum.
+ You will gain 2 lives every 50 points.
+ 
+ Enemy saucers become 200ms faster to shoot every 50 points.
+ The fastest speed for a saucer to shoot is 3000ms.
+ The original speed for a saucer to shoot is 6000ms.
+ The enemy saucers are fastest after 750 points.
+ Over time, enemy saucers are faster to appear.
+ 
+ The maximum score is 65535 points (max val of unsigned 16-bit int)
+ Striving to acheive the maximum score is unrealistic and should not be attempted.
+ 
+ 
+ In the options menu, there is normally two options:
+ HiScore and Playback
+ the playback option will not appear if there is no valid film saved.
+ A film is invalid if the last game was not completed.
+ There can only be one saved film.
+ 
+ Highscores are saved as 3 letters and the score.
+ You may reset this to N/A 0.
+ 
+ Saved Films may not be complete if a game is extremely long.
+ These films will terminate as soon as the film player
+ has reached the end of the EEPROM if health is not depleted before this.
+ 
+ If the potentiometer value is 0 at startup, the game will be muted.
+ You can change this in the main menu by
+ taking the pot off zero and then back on zero.
+ This is a toggle can be used to mute it again.
+ If the game is muted, a mute symbol will appear on the main menu.
+ 
+ To pause a game or a saved film, press the right button
+ There will be an option to exit and an option to resume.
+ When pausing a game, the current score and the highscore
+ are shown. When pausing a saved film, only the current score
+ is shown.
+ 
+ When the game has ended, you will see the text "GAME OVER" and
+ your score. If you have acheived a high score, you will see
+ the text "New HiScore!" flash. To advance from the game over
+ screen press both buttons.
+ 
+ If you have acheive a highscore, after the game over menu,
+ you will be able to type in three letters to identify yourself.
+ Use the pot to choose a letter and the left button to advance.
+ Fully clockwise is a blank character.
+ Press the right button to backspace.
