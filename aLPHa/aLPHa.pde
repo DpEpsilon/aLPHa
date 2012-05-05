@@ -2,34 +2,74 @@
 #include "ed1.h"
 #include <LiquidCrystal.h>
 
-// LCD display
-LiquidCrystal lcd(6,7,8,2,3,4,5);
-
 // LED array
-static byte latchPin = 11;
-static byte dataPin = 12;
-static byte clockPin = 10;
+#define LATCH_PIN 11
+#define DATA_PIN 12
+#define CLOCK_PIN 10
 
 // Other LED
-static byte ledPin = 13;
+#define LED_PIN 13
 
 // Buttons
-static byte leftButton = 14;
-static byte rightButton = 15;
+#define LEFT_BUTTON 14
+#define RIGHT_BUTTON 15
 
 // Buzzer
-static byte buzzerPin = 9;
+#define BUZZER_PIN 9
 
 // Potentiometer
-static byte potPin = 3;
+#define POT_PIN 3
 
 // Sound constants
-static byte beatSize = 35;
-static int tuningNote = 440;
-static float temperament = pow(2.0,1.0/24.0);
+#define BEAT_SIZE 35
+#define TUNING_NOTE 440
+#define TEMPERAMENT 1.029302236643492 // pow(2.0,1.0/24.0)
 
 // Game Constants
-static int enemyTime = 6000;
+#define ENEMY_TIME 6000
+
+// Game states
+
+// 0 opening
+// 1 main menu
+// 2 high score
+// 3 game
+// 4 high score reset prompt
+// 5 Game Over Screen
+// 6 High Score Entry
+// 7 Playback
+// 8 Playback Game Over Screen
+// 9 Options Menu
+// 10 Pause Menu for Game and Playback
+
+#define TITLE_SCREEN       0
+#define MAIN_MENU          1
+#define HIGH_SCORE         2
+#define GAME               3
+#define HIGH_SCORE_RESET   4
+#define GAME_OVER          5
+#define HIGH_SCORE_ENTRY   6
+#define PLAYBACK           7
+#define PLAYBACK_GAME_OVER 8
+#define OPTIONS            9
+#define PAUSE_MENU         10
+
+// Sounds
+
+#define THEME_SOUND   0
+#define ENGINE_SOUND  1
+#define BLIP_SOUND    2
+#define NA_NA_SOUND   3
+#define DAMAGE_SOUND  4
+#define BEEP_SOUND    5
+#define WOOSH_SOUND   6
+#define TRILL_SOUND   7
+#define FUNERAL_SOUND 8
+
+
+
+// LCD display
+LiquidCrystal lcd(6,7,8,2,3,4,5);
 
 // Timing Values
 unsigned long currentTime = 0;
@@ -58,8 +98,8 @@ byte soundIndex = 255;
 boolean isMuted = false;
 
 // State
-byte state = 0;
-byte prevState = 0;
+byte state = TITLE_SCREEN;
+byte prevState = TITLE_SCREEN;
 boolean stateChanged = true;
 byte currentIndex = 0;
 
@@ -74,10 +114,10 @@ byte health = 8;
 byte preHealth = 8;
 int enemies[4] = 
 {
-  enemyTime,
-  enemyTime,
-  enemyTime,
-  enemyTime,
+  ENEMY_TIME,
+  ENEMY_TIME,
+  ENEMY_TIME,
+  ENEMY_TIME,
 };
 int enemiesPos[4];
 byte enemyNum = 0;
@@ -145,22 +185,22 @@ byte soundNoteCount[] =
   3,
   // 3 NA NA NA NA NA
   15,
-  // 4 IMA DYING
+  // 4 Damage
   20,
   // 5 BEEP
   1,
   // 6 WOOSH
   17,
-  // 7 TRILL
+  // 7 Trill
   13,
-  // 8 FUNERAL
+  // 8 Funeral
   11,
 };
 
 // Durations
 byte soundDurations[] =
 {
-  // First Sound
+  // 0
   36,
   12,
   12,
@@ -188,14 +228,17 @@ byte soundDurations[] =
   12,
   12,
   48,
-  // Second Sound
+  
+  // 1
   2,
   2,
 
+  // 2
   1,
   1,
   1,
 
+  // 3
   1,
   2,
   1,
@@ -212,6 +255,7 @@ byte soundDurations[] =
   1,
   4,
 
+  // 4
   1,
   1,
   1,
@@ -233,8 +277,10 @@ byte soundDurations[] =
   1,
   6,
 
+  // 5
   8,
 
+  // 6
   1,
   1,
   1,
@@ -253,6 +299,7 @@ byte soundDurations[] =
   1,
   8,
 
+  // 7
   1,
   1,
   1,
@@ -267,6 +314,7 @@ byte soundDurations[] =
   1,
   2,
 
+  // 8
   8,
   6,
   2,
@@ -285,7 +333,7 @@ byte soundDurations[] =
 // (eg. -2 is Ab4 and 2 is A#4)
 signed char soundPitches[] =
 {
-  // First Sound
+  // 0
   -24,
   -10,
   -18,
@@ -313,14 +361,17 @@ signed char soundPitches[] =
   -18,
   -20,
   -24,
-  // Second Sound
+  
+  // 1
   -24,
   0,
 
+  // 2
   24,
   31,
   38,
 
+  // 3
   -8,
   6,
   -128,
@@ -336,7 +387,8 @@ signed char soundPitches[] =
   0,
   16,
   0,
-
+  
+  // 4  
   -18,
   -11,
   -4,
@@ -358,8 +410,10 @@ signed char soundPitches[] =
   -22,
   -24,
 
+  // 5
   6,
 
+  // 6
   0,
   1,
   2,
@@ -378,6 +432,7 @@ signed char soundPitches[] =
   15,
   16,
 
+  // 7
   6,
   30,
   5,
@@ -392,6 +447,7 @@ signed char soundPitches[] =
   25,
   0,
 
+  // 8
   -24,
   -24,
   -24,
@@ -456,9 +512,9 @@ void updateGlyphs(byte index, byte shift)
 // Writes a byte to leds
 void ledwrite(byte a)
 {
-  digitalWrite(latchPin, LOW);
-  shiftOut(dataPin, clockPin, MSBFIRST, a);
-  digitalWrite(latchPin, HIGH);
+  digitalWrite(LATCH_PIN, LOW);
+  shiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, a);
+  digitalWrite(LATCH_PIN, HIGH);
 }
 
 // Changes the game state
@@ -468,17 +524,6 @@ void changeState(byte s)
   state = s;
   stateChanged = true;
 }
-// 0 opening
-// 1 main menu
-// 2 high score
-// 3 game
-// 4 high score reset prompt
-// 5 Game Over Screen
-// 6 High Score Entry
-// 7 Playback
-// 8 Playback Game Over Screen
-// 9 Options Menu
-// 10 Pause Menu for Game and Playback
 
 // Gets the index of the first note of a sound
 int sumNotes(byte si)
@@ -503,10 +548,10 @@ void playSounds()
     int sumOfNotes = sumNotes(soundIndex);
 
     // If the note has been going for too long
-    if (noteTime >= (int)(soundDurations[sumOfNotes + noteIndex] * beatSize))
+    if (noteTime >= (int)(soundDurations[sumOfNotes + noteIndex] * BEAT_SIZE))
     {
       // decrement the note time
-      noteTime -= (int)(soundDurations[sumOfNotes + noteIndex] * beatSize);
+      noteTime -= (int)(soundDurations[sumOfNotes + noteIndex] * BEAT_SIZE);
       // increment the note;
       noteIndex++;
 
@@ -517,17 +562,17 @@ void playSounds()
         soundIndex = 255;
         noteIndex = 0;
         noteTime = 0;
-        noTone(buzzerPin);
+        noTone(BUZZER_PIN);
       }
       else if (soundPitches[sumOfNotes + noteIndex] == -128) // If there is a rest
       {
         // Stop the buzzer
-        noTone(buzzerPin);
+        noTone(BUZZER_PIN);
       }
       else // Otherwise
       {
         // Play the next note
-        tone(buzzerPin, tuningNote * pow(temperament,(float)soundPitches[sumOfNotes + noteIndex]), (int)(soundDurations[sumOfNotes + noteIndex] * beatSize));
+        tone(BUZZER_PIN, TUNING_NOTE * pow(TEMPERAMENT,(float)soundPitches[sumOfNotes + noteIndex]), (int)(soundDurations[sumOfNotes + noteIndex] * BEAT_SIZE));
       }
     }
   }
@@ -543,14 +588,14 @@ void startSound(byte i)
   // Calculate where the sound is in the arrays
   int sumOfNotes = sumNotes(soundIndex);
   if (!isMuted)
-    tone(buzzerPin, tuningNote * pow(temperament,(float)soundPitches[sumOfNotes + noteIndex]), (int)(soundDurations[sumOfNotes + noteIndex] * beatSize));
+    tone(BUZZER_PIN, TUNING_NOTE * pow(TEMPERAMENT,(float)soundPitches[sumOfNotes + noteIndex]), (int)(soundDurations[sumOfNotes + noteIndex] * BEAT_SIZE));
 }
 
 // Stops the playing sound
 void stopSound()
 {
   soundIndex = 255;
-  noTone(buzzerPin);
+  noTone(BUZZER_PIN);
 }
 
 void resetGameVariables()
@@ -563,10 +608,10 @@ void resetGameVariables()
   lazerCharged = 500;
   health = 8;
   preHealth = 8;
-  enemies[0] = enemyTime;
-  enemies[1] = enemyTime;
-  enemies[2] = enemyTime;
-  enemies[3] = enemyTime;
+  enemies[0] = ENEMY_TIME;
+  enemies[1] = ENEMY_TIME;
+  enemies[2] = ENEMY_TIME;
+  enemies[3] = ENEMY_TIME;
   enemiesPos[0] = 0;
   enemiesPos[1] = 0;
   enemiesPos[2] = 0;
@@ -616,7 +661,7 @@ void playBack()
   if (memoryPos >= 0x3ff8)
   {
     memoryPos = 0x4000;
-    changeState(8);
+    changeState(PLAYBACK_GAME_OVER);
     return;
   }
   // Data to Read
@@ -649,21 +694,20 @@ void playBack()
     // Discharge the lazer
     lastLazer = currentTime;
     // Signal lazer charge light to off
-    digitalWrite(ledPin, LOW);
+    digitalWrite(LED_PIN, LOW);
     if (shot == 5)
     {
-      // FIRE THE LAAAAAAAZZZZZZZZZZZZZZZZZZZEEEEEEEEEEEEEEEEERRRRRRRRRRRRR!!!!!!!!!!!!
+      // FIRE THE LAZER!
       // and miss
-      startSound(7);
-      // noob sound has been initialized
+      startSound(TRILL_SOUND);
     }
     else
     {
       // DESTROY TEH ENEMY
-      enemies[shot - 1] = enemyTime;
+      enemies[shot - 1] = ENEMY_TIME;
       enemiesHit++;
       // Play the BOOM
-      startSound(6);
+      startSound(WOOSH_SOUND);
       if (enemiesHit % 50 == 0)
       {
         if (health < 7)
@@ -676,15 +720,177 @@ void playBack()
           health += 1;
           preHealth = health;
         }
-        startSound(3);
+        startSound(NA_NA_SOUND);
       }
     }
   }
 }
 
+void updateGame()
+{
+  int currentEnemyTime = constrain((ENEMY_TIME - (enemiesHit/50)*200),
+                                   3000, ENEMY_TIME);
+  playerPosPrev = playerPos;
+  // Enemies loop
+  for (byte i = 0; i < 4; i++)
+  {
+    // Update Active enemies
+    if (enemies[i] < currentEnemyTime)
+      enemies[i] += currentTime - previousTime;
+    else
+    {
+      // Start timed-out enemies' timers'
+      enemies[i] = -(random((1000 * (i+1)) * 1/((currentTime - resetTime)/100000 + 1),
+                            (2000* (i+1)) * 1/((currentTime - resetTime)/100000 + 1)));
+      
+      // Check for a new spot for the enemy
+      while (true)
+      {
+        boolean IsBad = false;
+        enemiesPos[i] = random(0, 15);
+        for (int j = 0; j < 4; j++)
+        {
+          if (j == i)
+            continue;
+          if (enemiesPos[i] == enemiesPos[j] && enemies[j] < currentEnemyTime)
+          {
+            IsBad = true;
+            break;
+          }
+        }
+        if (!IsBad)
+          break;
+      }
+    }
+    
+    // Record the new enemies
+    if ((enemies[i] >= 0) && ((enemies[i] - ((int)(currentTime - previousTime))) < 0))
+    {
+      newEnemies = newEnemies | power(2,i);
+    }
+    
+    // If enemy should shoot and hasn't started shooting
+    if (enemies[i] >= (currentEnemyTime - (currentEnemyTime/8)) && enemies[i] - (currentTime - previousTime) < (currentEnemyTime - (currentEnemyTime/8)))
+    {
+      // Set previous health if the player
+      // Hasn't taken any damage lately
+      if (currentTime - lastDamageTime > 2000)
+      {
+        preHealth = health;
+      }
+      // Take away health;
+      health -= 1;
+      // Play an evil noise
+      startSound(DAMAGE_SOUND);
+      // Change the lastDamageTime
+      lastDamageTime = currentTime;
+    }
+  }
+
+  // If the player hasn't moved lately
+  if (currentTime - lastMoveTime > 25)
+  {
+    // reset the lastMoveTime
+    lastMoveTime = currentTime;
+
+    if (accelYCurrent > 5 && playerPos < 75)
+    {
+      playerPos += 1;
+      // Record the move player for the game recorder
+      playerMoved = true;
+    }
+    else if (accelYCurrent < -5 && playerPos > 0)
+    {
+      playerPos -= 1;
+      // Record the move player for the game recorder
+      playerMoved = true;
+    }
+  }
+  
+  // If the player has a charged lazer
+  if (currentTime - lastLazer >= 500)
+  {
+    // If the lazer wasn't charged before
+    if (previousTime - lastLazer < 500)
+    {
+      // Signal the charged lazer!
+      digitalWrite(LED_PIN, HIGH);
+      if (soundIndex != 3)
+        startSound(BLIP_SOUND);
+    }
+
+    // If the button has just been pressed
+    if (!leftButtonPrevious && leftButtonCurrent)
+    {
+      // Discharge the lazer
+      lastLazer = currentTime;
+      // FIRE THE LAZER!
+      lazerPos = (playerPosPrev + 2)/5;
+
+      // Signal lazer charge light to off
+      digitalWrite(LED_PIN, LOW);
+
+      boolean hit = false;
+
+      // Check if an enemy has been hit
+      for (byte i = 0; i < 4; i++)
+      {
+        // YES???
+        if (enemiesPos[i] == lazerPos && enemies[i] < currentEnemyTime && enemies[i] >= 0)
+        {
+          // YES!!!
+
+          // Signal to Recorder
+          buttonPressPre = i + 1;
+
+          // DESTROY TEH ENEMY
+          enemies[i] = ENEMY_TIME;
+          // Play the BOOM
+          startSound(WOOSH_SOUND);
+          hit = true;
+          enemiesHit++;
+          if (enemiesHit % 50 == 0)
+          {
+            if (health < 7)
+            {
+              health += 2;
+              preHealth = health;
+            }
+            else if (health < 8)
+            {
+              health += 1;
+              preHealth = health;
+            }
+            startSound(NA_NA_SOUND);
+          }
+          break;
+        }
+      }
+      
+      if (!hit)
+      {
+        // Signal to Recorder
+        buttonPressPre = 5;
+        // YOU MISSED YOU N0000008!!!!!
+        startSound(TRILL_SOUND);
+        // noob sound has been initialized
+      }
+    }
+  }
+  
+  // Stop the game when the player is out of health
+  if (health == 0 || health > 8)
+  {
+    // Mark the film as valid
+    filmIsSafe = true;
+    EEPROM_ed1.sendB(0x199,1);
+    changeState(GAME_OVER);
+  }
+}
+
 void drawGame()
 {
-  int currentEnemyTime = constrain((enemyTime - (enemiesHit/50)*200), 3000, enemyTime);
+  int currentEnemyTime = constrain((ENEMY_TIME - (enemiesHit/50)*200), 3000, ENEMY_TIME);
   // If the player has not recently been hit
   if (currentTime - lastDamageTime > 2000)
   {
@@ -737,18 +943,18 @@ void drawGame()
   // If the player is firing
   if (currentTime - lastLazer < 500)
   {
-    boolean IsBad = false;
+    boolean isBad = false;
     // Check for new enemies in the lazer square
     for (byte i = 0; i < 4; i++)
     {
       if (enemiesPos[i] == lazerPos && (enemies[i] < 0 || enemies[i] > currentEnemyTime))
       {
-        IsBad = true;
+        isBad = true;
         break;
       }
     }
     // Draw the lazer beam if there is no new enemy in that square
-    if (!IsBad)
+    if (!isBad)
     {
       lcd.setCursor(lazerPos,0);
       lcd.print("|");
@@ -765,16 +971,14 @@ void draw()
   // Do something dependent on the state
   switch(state)
   {
-    // Title screen
-  case 0:
+  case TITLE_SCREEN:
     // Display Title
     lcd.setCursor(5,0);
     lcd.print("aLPHa");
     lcd.setCursor(0,1);
     lcd.print("Press Any Button");
     break;
-    // Menu Screen
-  case 1:
+  case MAIN_MENU:
     // Display Menu
     lcd.setCursor(5,0);
     lcd.print("aLPHa");
@@ -788,8 +992,7 @@ void draw()
       lcd.write(6);
     }
     break;
-    // High score screen
-  case 2:
+  case HIGH_SCORE:
     // Display high score
     lcd.home();
     lcd.print(highScoreGuy);
@@ -801,12 +1004,10 @@ void draw()
     lcd.setCursor(12,1);
     lcd.print("Back");
     break;
-    // Game screen
-  case 3:
+  case GAME:
     drawGame();
     break;
-    // Reset Highscore Prompt
-  case 4:
+  case HIGH_SCORE_RESET:
     // Draw Reset Highscore Prompt
     lcd.home();
     lcd.print("Reset HiScore?");
@@ -815,8 +1016,7 @@ void draw()
     lcd.setCursor(13, 1);
     lcd.print("No");
     break;
-    // Game Over screen
-  case 5:
+  case GAME_OVER:
     lcd.setCursor(3,0);
     lcd.print("GAME OVER");
     lcd.setCursor(0,1);
@@ -848,7 +1048,7 @@ void draw()
       lcd.print(enemiesHit);
     }
     break;
-  case 6:
+  case HIGH_SCORE_ENTRY:
     // Display high score
     lcd.home();
     lcd.print(highScoreGuy);
@@ -856,10 +1056,10 @@ void draw()
     lcd.print(' ');
     lcd.print(highScore);
     break;
-  case 7:
+  case PLAYBACK:
     drawGame();
     break;
-  case 8:
+  case PLAYBACK_GAME_OVER:
     if (memoryPos < 0x4000)
     {
       lcd.setCursor(3,0);
@@ -873,7 +1073,7 @@ void draw()
     lcd.setCursor(0,1);
     lcd.print(enemiesHit);
     break;
-  case 9:
+  case OPTIONS:
     lcd.setCursor(5,0);
     lcd.print("aLPHa");
     if (filmIsSafe)
@@ -884,9 +1084,9 @@ void draw()
     lcd.setCursor(9,1);
     lcd.print("HiScore");
     break;
-  case 10:
+  case PAUSE_MENU:
     lcd.home();
-    if (prevState == 3)
+    if (prevState == GAME)
     {
       if (currentTime % 2000 < 1000)
       {
@@ -921,12 +1121,12 @@ void update()
   // Update Input Values
   leftButtonPrevious = leftButtonCurrent;
   rightButtonPrevious = rightButtonCurrent;
-  leftButtonCurrent = digitalRead(leftButton) == LOW;
-  rightButtonCurrent = digitalRead(rightButton) == LOW;
+  leftButtonCurrent = digitalRead(LEFT_BUTTON) == LOW;
+  rightButtonCurrent = digitalRead(RIGHT_BUTTON) == LOW;
   potPrevious = potCurrent;
-  potCurrent = analogRead(potPin);
+  potCurrent = analogRead(POT_PIN);
   // Update the accelerometer values if the game is in motion
-  if (state == 3)
+  if (state == GAME)
   {
     accelYPrevious = accelYCurrent;
     accelYCurrent = Accel.readY();
@@ -940,75 +1140,72 @@ void update()
     stateChanged = false;
     switch (state)
     {
-    case 0:
-      startSound(0);
+    case TITLE_SCREEN:
+      startSound(THEME_SOUND);
       resetGameVariables();
       break;
       
-    case 1:
-      startSound(2);
+    case MAIN_MENU:
+      startSound(BLIP_SOUND);
       currentIndex = 0;
       break;
       
-    case 2:
-      startSound(2);
+    case HIGH_SCORE:
+      startSound(BLIP_SOUND);
       break;
       
-    case 3:
+    case GAME:
       if (prevState != 10)
       {
         memoryPos = 0x200;
         filmIsSafe = false;
         EEPROM_ed1.sendB(0x199,0);
       }
-      startSound(2);
+      startSound(BLIP_SOUND);
       break;
       
-    case 4:
-      startSound(2);
+    case HIGH_SCORE_RESET:
+      startSound(BLIP_SOUND);
       break;
       
-    case 5:
+    case GAME_OVER:
       ledwrite(0);
       // If there is a new highscore
       if (enemiesHit > highScore)
       {
-        // NANANANANAAAANAAA
-        // I beat ur score!!
-        startSound(3);
+        startSound(NA_NA_SOUND);
       }
       else
       {
-        // IMA DEAD!!!
-        startSound(8);
+        startSound(FUNERAL_SOUND);
       }
       break;
       
-    case 6:
+    case HIGH_SCORE_ENTRY:
       currentIndex = 0;
       highScoreGuy[0] = ' ';
       highScoreGuy[1] = ' ';
       highScoreGuy[2] = ' ';
       break;
       
-    case 7:
+    case PLAYBACK:
       if (prevState != 10)
       {
         memoryPos = 0x200;
       }
       break;
       
-    case 8:
-      startSound(2);
+    case PLAYBACK_GAME_OVER:
+      startSound(BLIP_SOUND);
       ledwrite(0);
       break;
       
-    case 9:
-      startSound(2);
+    case OPTIONS:
+      startSound(BLIP_SOUND);
       break;
       
-    case 10:
-      startSound(2);
+    case PAUSE_MENU:
+      startSound(BLIP_SOUND);
       break;
     }
   }
@@ -1016,219 +1213,58 @@ void update()
   // Do normal logic
   switch (state)
   {
-    // Title Screen
-  case 0:
+    case TITLE_SCREEN:
     // Poll for buttons
     if ((rightButtonCurrent && !rightButtonPrevious) || (leftButtonCurrent && !leftButtonPrevious))
     {
-      changeState(1);
+      changeState(MAIN_MENU);
     }
     break;
     
-    // Menu Screen
-  case 1:
+    case MAIN_MENU:
+    // Toggle muted state
     if (potCurrent == 0 && potPrevious != 0)
     {
       isMuted = !isMuted;
       if (!isMuted)
-        startSound(2);
+        startSound(BLIP_SOUND);
     }
+    
     if (leftButtonCurrent && !leftButtonPrevious)
     {
-      changeState(3);
+      changeState(GAME);
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     else if (rightButtonCurrent && !rightButtonPrevious)
     {
-      changeState(9);
+      changeState(OPTIONS);
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     break;
     
-    // Highscore screen
-  case 2:
+    case HIGH_SCORE:
     // Poll for buttons
     if (rightButtonCurrent && !rightButtonPrevious)
     {
-      changeState(1);
+      changeState(MAIN_MENU);
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     else if (leftButtonCurrent && !leftButtonPrevious)
     {
-      changeState(4);
+      changeState(HIGH_SCORE_RESET);
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     break;
     
-    // Game Screen
-  case 3:
-    {
-      int currentEnemyTime = constrain((enemyTime - (enemiesHit/50)*200), 3000, enemyTime);
-      playerPosPrev = playerPos;
-      // Enemies loop
-      for (byte i = 0; i < 4; i++)
-      {
-        // Update Active enemies
-        if (enemies[i] < currentEnemyTime)
-          enemies[i] += currentTime - previousTime;
-        else
-        {
-          // Start timed-out enemies' timers'
-          enemies[i] = -(random((1000 * (i+1)) * 1/((currentTime - resetTime)/100000 + 1), (2000* (i+1)) * 1/((currentTime - resetTime)/100000 + 1)));
-          
-          // Check for a new spot for the enemy
-          while (true)
-          {
-            boolean IsBad = false;
-            enemiesPos[i] = random(0, 15);
-            for (int j = 0; j < 4; j++)
-            {
-              if (j == i)
-                continue;
-              if (enemiesPos[i] == enemiesPos[j] && enemies[j] < currentEnemyTime)
-              {
-                IsBad = true;
-                break;
-              }
-            }
-            if (!IsBad)
-              break;
-          }
-        }
-        
-        // Record the new enemies
-        if ((enemies[i] >= 0) && ((enemies[i] - ((int)(currentTime - previousTime))) < 0))
-        {
-          newEnemies = newEnemies | power(2,i);
-        }
-        
-        // If enemy should shoot and hasn't started shooting
-        if (enemies[i] >= (currentEnemyTime - (currentEnemyTime/8)) && enemies[i] - (currentTime - previousTime) < (currentEnemyTime - (currentEnemyTime/8)))
-        {
-          // Set previous health if the player
-          // Hasn't taken any damage lately
-          if (currentTime - lastDamageTime > 2000)
-          {
-            preHealth = health;
-          }
-          // Take away health;
-          health -= 1;
-          // Play an evil noise
-          startSound(4);
-          // Change the lastDamageTime
-          lastDamageTime = currentTime;
-        }
-      }
-
-      // If the player hasn't moved lately
-      if (currentTime - lastMoveTime > 25)
-      {
-        // reset the lastMoveTime
-        lastMoveTime = currentTime;
-
-        if (accelYCurrent > 5 && playerPos < 75)
-        {
-          playerPos += 1;
-          // Record the move player for the game recorder
-          playerMoved = true;
-        }
-        else if (accelYCurrent < -5 && playerPos > 0)
-        {
-          playerPos -= 1;
-          // Record the move player for the game recorder
-          playerMoved = true;
-        }
-      }
-      
-      // If the player has a charged lazer
-      if (currentTime - lastLazer >= 500)
-      {
-        // If the lazer wasn't charged before
-        if (previousTime - lastLazer < 500)
-        {
-          // Signal the charged LAAAAAAAAAZZZZZZZZZZZEEEEEEEEEEEEEERRRRRRR!!!!!!!!!
-          digitalWrite(ledPin, HIGH);
-          if (soundIndex != 3)
-            startSound(2);
-        }
-
-        // If the button has just been pressed
-        if (!leftButtonPrevious && leftButtonCurrent)
-        {
-          // Discharge the lazer
-          lastLazer = currentTime;
-          // FIRE THE LAAAAAAAZZZZZZZZZZZZZZZZZZZEEEEEEEEEEEEEEEEERRRRRRRRRRRRR!!!!!!!!!!!!
-          lazerPos = (playerPosPrev + 2)/5;
-
-          // Signal lazer charge light to off
-          digitalWrite(ledPin, LOW);
-
-          boolean hit = false;
-
-          // Check if an enemy has been hit
-          for (byte i = 0; i < 4; i++)
-          {
-            // YES???
-            if (enemiesPos[i] == lazerPos && enemies[i] < currentEnemyTime && enemies[i] >= 0)
-            {
-              // YES!!!
-
-              // Signal to Recorder
-              buttonPressPre = i + 1;
-
-              // DESTROY TEH ENEMY
-              enemies[i] = enemyTime;
-              // Play the BOOM
-              startSound(6);
-              hit = true;
-              enemiesHit++;
-              if (enemiesHit % 50 == 0)
-              {
-                if (health < 7)
-                {
-                  health += 2;
-                  preHealth = health;
-                }
-                else if (health < 8)
-                {
-                  health += 1;
-                  preHealth = health;
-                }
-                startSound(3);
-              }
-              break;
-            }
-          }
-          
-          if (!hit)
-          {
-            // Signal to Recorder
-            buttonPressPre = 5;
-            // YOU MISSED YOU N0000008!!!!!
-            startSound(7);
-            // noob sound has been initialized
-          }
-        }
-      }
-      
-      // Stop the game when the player is out of health
-      if (health == 0 || health > 8)
-      {
-        // Mark the film as valid
-        filmIsSafe = true;
-        EEPROM_ed1.sendB(0x199,1);
-        changeState(5);
-      }
-    }
-
+  case GAME:
+    updateGame();
     if (rightButtonCurrent && !rightButtonPrevious)
     {
-      changeState(10);
+      changeState(PAUSE_MENU);
     }
     break;
     
-    // Reset Highscore Screen
-  case 4:
+  case HIGH_SCORE_RESET:
     // Poll for buttons
     if (leftButtonCurrent && !leftButtonPrevious)
     {
@@ -1243,19 +1279,19 @@ void update()
       EEPROM_ed1.sendI(0x103, 0);
 
       // Go back
-      changeState(2);
+      changeState(HIGH_SCORE);
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     else if (rightButtonCurrent && !rightButtonPrevious)
     {
       // Go back
-      changeState(2);
+      changeState(HIGH_SCORE);
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     break;
     
     // Game Over Screen
-  case 5:
+  case GAME_OVER:
     // Poll for buttons
     if ((!leftButtonPrevious || !rightButtonPrevious) && (leftButtonCurrent && rightButtonCurrent))
     {
@@ -1264,17 +1300,17 @@ void update()
       {
         // It's time to punch in those initals.
         highScore = enemiesHit;
-        changeState(6);
+        changeState(HIGH_SCORE_ENTRY);
       }
       else
       {
         // Otherwise, return to start
-        changeState(0);
+        changeState(TITLE_SCREEN);
       }
     }
     break;
     
-  case 6:
+  case HIGH_SCORE_ENTRY:
     highScoreGuy[currentIndex] = map(potCurrent, 1, 1023, 'Z', 'A');
     if (potCurrent == 0)
     {
@@ -1282,13 +1318,13 @@ void update()
     }
     if (leftButtonCurrent && !leftButtonPrevious)
     {
-      startSound(2);
+      startSound(BLIP_SOUND);
       currentIndex++;
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     else if (rightButtonCurrent && !rightButtonPrevious && currentIndex != 0)
     {
-      startSound(2);
+      startSound(BLIP_SOUND);
       highScoreGuy[currentIndex] = ' ';
       currentIndex--;
     }
@@ -1301,13 +1337,13 @@ void update()
       EEPROM_ed1.sendB(0x101, (char)highScoreGuy[1]);
       EEPROM_ed1.sendB(0x102, (char)highScoreGuy[2]);
       EEPROM_ed1.sendI(0x103, highScore);
-      changeState(0);
+      changeState(TITLE_SCREEN);
     }
     break;
 
-  case 7:
+  case PLAYBACK:
     {
-      int currentEnemyTime = constrain((enemyTime - (enemiesHit/50)*200), 3000, enemyTime);
+      int currentEnemyTime = constrain((ENEMY_TIME - (enemiesHit/50)*200), 3000, ENEMY_TIME);
       playerPosPrev = playerPos;
       // Enemies loop
       for (byte i = 0; i < 4; i++)
@@ -1330,7 +1366,7 @@ void update()
           // Take away health;
           health -= 1;
           // Play an evil noise
-          startSound(4);
+          startSound(DAMAGE_SOUND);
           // Change the lastDamageTime
           lastDamageTime = currentTime;
         }
@@ -1341,50 +1377,51 @@ void update()
         // If the lazer wasn't charged before
         if (previousTime - lastLazer < 500)
         {
-          // Signal the charged LAAAAAAAAAZZZZZZZZZZZEEEEEEEEEEEEEERRRRRRR!!!!!!!!!
-          digitalWrite(ledPin, HIGH);
-          if (soundIndex != 3)
-            startSound(2);
+          // Signal the charged lazer!
+          digitalWrite(LED_PIN, HIGH);
+          if (soundIndex != NA_NA_SOUND) // We like this sound to linger
+            startSound(BLIP_SOUND);
         }
       }
 
       // Stop the game when the player is out of health
       if (health == 0 || health > 8)
       {
-        changeState(8);
+        changeState(PLAYBACK_GAME_OVER);
       }
     }
+    
     if (rightButtonCurrent && !rightButtonPrevious)
     {
-      changeState(10);
+      changeState(PAUSE_MENU);
     }
     break;
-  case 8:
+  case PLAYBACK_GAME_OVER:
     if ((!leftButtonPrevious || !rightButtonPrevious) && (leftButtonCurrent && rightButtonCurrent))
     {
       // Return to start
-      changeState(0);
+      changeState(TITLE_SCREEN);
     }
     break;
-  case 9:
+  case OPTIONS:
     if (leftButtonCurrent && !leftButtonPrevious && filmIsSafe)
     {
-      changeState(7);
+      changeState(PLAYBACK);
     }
     else if (rightButtonCurrent && !rightButtonPrevious)
     {
-      changeState(2);
+      changeState(HIGH_SCORE);
       pressTime = currentTime; // Make sure a double press is not registered.
     }
     break;
-  case 10:
+  case PAUSE_MENU:
     if (rightButtonCurrent && !rightButtonPrevious)
     {
       changeState(prevState);
     }
     else if (leftButtonCurrent && !leftButtonPrevious)
     {
-      changeState(0);
+      changeState(TITLE_SCREEN);
     }
     break;
   }
@@ -1395,8 +1432,6 @@ void update()
 
 void setup(void)
 {
-  // Initialize
-
   // LCD
   lcd.begin(16,2);
 
@@ -1409,11 +1444,11 @@ void setup(void)
   Serial.begin(9600);
 
   // Leds
-  pinMode(latchPin, OUTPUT);
-  pinMode(dataPin, OUTPUT);
-  pinMode(clockPin, OUTPUT);
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, HIGH);
+  pinMode(LATCH_PIN, OUTPUT);
+  pinMode(DATA_PIN, OUTPUT);
+  pinMode(CLOCK_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);
 
   ledwrite(0);
 
@@ -1426,10 +1461,10 @@ void setup(void)
   randomSeed(analogRead(0));
 
   // Buttons
-  pinMode(leftButton, INPUT);
-  pinMode(rightButton, INPUT);
-  digitalWrite(leftButton, HIGH);
-  digitalWrite(rightButton, HIGH);
+  pinMode(LEFT_BUTTON, INPUT);
+  pinMode(RIGHT_BUTTON, INPUT);
+  digitalWrite(LEFT_BUTTON, HIGH);
+  digitalWrite(RIGHT_BUTTON, HIGH);
 
   // EEPROM
   EEPROM_ed1.begin();
@@ -1443,7 +1478,8 @@ void setup(void)
 
   stopSound();
 
-  if (analogRead(potPin) == 0)
+  // Mute on startup feature
+  if (analogRead(POT_PIN) == 0)
     isMuted = true;
 }
 
