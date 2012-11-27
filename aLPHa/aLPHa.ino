@@ -571,6 +571,7 @@ void playSounds()
       }
       else // Otherwise
       {
+        noTone(BUZZER_PIN);
         // Play the next note
         tone(BUZZER_PIN, TUNING_NOTE * pow(TEMPERAMENT,(float)soundPitches[sumOfNotes + noteIndex]), (int)(soundDurations[sumOfNotes + noteIndex] * BEAT_SIZE));
       }
@@ -587,8 +588,10 @@ void startSound(byte i)
 
   // Calculate where the sound is in the arrays
   int sumOfNotes = sumNotes(soundIndex);
-  if (!isMuted)
+  if (!isMuted) {
+    noTone(BUZZER_PIN);
     tone(BUZZER_PIN, TUNING_NOTE * pow(TEMPERAMENT,(float)soundPitches[sumOfNotes + noteIndex]), (int)(soundDurations[sumOfNotes + noteIndex] * BEAT_SIZE));
+  }
 }
 
 // Stops the playing sound
